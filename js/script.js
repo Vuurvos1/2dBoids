@@ -11,6 +11,33 @@ let secondsPassed = 0;
 let oldTimeStamp = 0;
 let movingSpeed = 50;
 
+let flock = [];
+
+function setup() {
+    for (let i = 0; i < 25; i++) {
+        let radius = 30;
+
+        // let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
+        // let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
+        let x = canvas.width / 2;
+        let y = canvas.height / 2;
+
+        let vec = new Victor();
+
+        vec = vec.randomize(new Victor(-4, 4), new Victor(4, -4));
+        vec.normalize();
+
+        // console.log(vec);
+
+        let dx = vec.x * 4;
+        let dy = vec.y * 4;
+
+        flock.push(new Circle(x, y, dx, dy, radius));
+    }
+}
+
+setup();
+
 function animate() {
     // console.log('gameLoop');
 
@@ -18,35 +45,10 @@ function animate() {
     draw();
     // update();
 
-    window.requestAnimationFrame(animate);
+    // window.requestAnimationFrame(animate);
 }
 // jump start gameLoop
 window.requestAnimationFrame(animate);
-
-
-
-// create 100 random circles
-let circleArr = [];
-for (let i = 0; i < 25; i++) {
-    let radius = 30;
-
-    // let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
-    // let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
-    let x = canvas.width / 2;
-    let y = canvas.height / 2;
-
-    let vec = new Victor();
-
-    vec = vec.randomize(new Victor(-4, 4), new Victor(4, -4));
-    vec.normalize();
-    
-    console.log(vec);
-    
-    let dx = vec.x * 4;
-    let dy = vec.y * 4;
-
-    circleArr.push(new Circle(x, y, dx, dy, radius));
-}
 
 
 
@@ -66,18 +68,54 @@ function Circle(x, y, dx, dy, radius) {
     }
 
     this.update = () => {
-        if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
-            this.dx = -this.dx;
-        }
+        // if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+        //     this.dx = -this.dx;
+        // }
 
-        if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
-            this.dy = -this.dy
-        }
+        // if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+        //     this.dy = -this.dy
+        // }
 
         this.x += this.dx;
         this.y += this.dy;
 
         this.draw();
+    }
+
+    this.align = (boids) => {
+        // console.log('boid align');
+        let preceptionRadius = 50;
+        let avg = Victor();
+        let total = 0;
+
+        for (let other of boids) {
+            // console.log(this);
+            // console.log(other);
+            // let d = dist(this.position.x, this.position.y, other.position.x, other.position.y)
+
+            let vec1 = new Victor(this.x, this.y);
+            let vec2 = new Victor(other.x, other.y);
+
+            let d = vec1.distance(vec2);
+            // console.log(d);
+
+            if (other != this && d < preceptionRadius) {
+                avg.add(other);
+                total++;
+            }
+        }
+
+        if (total > 0) {
+            // console.log(avg);
+            // avg.divide(total);
+            // console.log(avg.divide(total))
+            // console.log(avg);
+            // console.log(this.velocity);
+            this.velocity = avg;
+        }
+
+        // console.log(avg);
+        // return avg;
     }
 }
 
@@ -85,24 +123,31 @@ function draw() {
     // Clear canvas to animate
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    for (let i in circleArr) {
-        circleArr[i].update();
+    for (let boid of flock) {
+        boid.align(flock);
+        boid.update();
     }
 
     // circle.update;
 }
 
+
+/*
 function align(boids) {
     let preceptionRadius = 50;
-    let total = 0;
-
     let avg = Victor();
+    let total = 0;
 
     for (let other of boids) {
         // let d = dist(this.position.x, this.position.y, other.position.x, other.position.y)
-        let d = vec1.distance(vec2);
 
-        if (d < preceptionRadius && other != this) {
+        let vec1 = new Victor(this.position.x, this.position.y);
+        let vec2 = new Victor(other.position.x, other.position.y);
+
+        let d = vec1.distance(vec2);
+        console.log(d);
+
+        if (other != this && d < preceptionRadius) {
             avg.add(other);
             total++;
         }
@@ -110,8 +155,10 @@ function align(boids) {
 
     if (total > 0) {
         avg.div(totla);
+        this.velocity = avg;
     }
 
     console.log(avg);
     return avg;
 }
+*/
