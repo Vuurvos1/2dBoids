@@ -1,36 +1,39 @@
 const canvas = document.querySelector('#canvas');
 const ctx = canvas.getContext('2d');
 
-canvas.width = 960;
-canvas.height = 500;
-
-let rectX = 0;
-let rectY = 0;
+canvas.width = 1200;
+canvas.height = 600;
 
 let secondsPassed = 0;
 let oldTimeStamp = 0;
 let movingSpeed = 50;
 
+let maxSpeed = 4;
+let minSpeed = .5;
+
+let boidSpeed = 4;
+
 let flock = [];
 
 function setup() {
-    for (let i = 0; i < 25; i++) {
-        let radius = 30;
+    for (let i = 0; i < 100; i++) {
+        let radius = 5;
 
-        // let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
-        // let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
-        let x = canvas.width / 2;
-        let y = canvas.height / 2;
+        // spawn random
+        let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
+        let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
+
+        // spawn center
+        // let x = canvas.width / 2;
+        // let y = canvas.height / 2;
 
         let vec = new Victor();
 
         vec = vec.randomize(new Victor(-4, 4), new Victor(4, -4));
         vec.normalize();
 
-        // console.log(vec);
-
-        let dx = vec.x * 4;
-        let dy = vec.y * 4;
+        let dx = vec.x * boidSpeed;
+        let dy = vec.y * boidSpeed;
 
         flock.push(new Circle(x, y, dx, dy, radius));
     }
@@ -39,17 +42,12 @@ function setup() {
 setup();
 
 function animate() {
-    // console.log('gameLoop');
-
-    // align(flock);
     draw();
-    // update();
 
-    // window.requestAnimationFrame(animate);
+    window.requestAnimationFrame(animate);
 }
 // jump start gameLoop
 window.requestAnimationFrame(animate);
-
 
 
 function Circle(x, y, dx, dy, radius) {
@@ -68,6 +66,7 @@ function Circle(x, y, dx, dy, radius) {
     }
 
     this.update = () => {
+        // Bounce of the canvas sides
         // if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
         //     this.dx = -this.dx;
         // }
@@ -78,44 +77,51 @@ function Circle(x, y, dx, dy, radius) {
 
         this.x += this.dx;
         this.y += this.dy;
-
-        this.draw();
     }
 
     this.align = (boids) => {
-        // console.log('boid align');
-        let preceptionRadius = 50;
-        let avg = Victor();
+        let preceptionRadius = 100;
+        let avg = new Victor();
         let total = 0;
 
         for (let other of boids) {
-            // console.log(this);
-            // console.log(other);
-            // let d = dist(this.position.x, this.position.y, other.position.x, other.position.y)
-
             let vec1 = new Victor(this.x, this.y);
             let vec2 = new Victor(other.x, other.y);
 
             let d = vec1.distance(vec2);
-            // console.log(d);
 
             if (other != this && d < preceptionRadius) {
-                avg.add(other);
+                avg.add(vec2);
                 total++;
             }
         }
 
         if (total > 0) {
-            // console.log(avg);
-            // avg.divide(total);
-            // console.log(avg.divide(total))
-            // console.log(avg);
-            // console.log(this.velocity);
-            this.velocity = avg;
+            avg.divide(new Victor(total, total));
+            avg.normalize();
+
+            let velocity = new Victor(this.dx, this.dy).normalize();
+
+            avg.subtract(velocity);
+
+            this.dx = avg.x * boidSpeed;
+            this.dy = avg.y * boidSpeed;
+        }
+    }
+
+    this.edges = () => {
+        // screen wrapping
+        if (this.x > canvas.width) {
+            this.x = 10;
+        } else if (this.x < 0) {
+            this.x = canvas.width;
         }
 
-        // console.log(avg);
-        // return avg;
+        if (this.y > canvas.height) {
+            this.y = 10;
+        } else if (this.y < 0) {
+            this.y = canvas.height;
+        }
     }
 }
 
@@ -124,41 +130,10 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let boid of flock) {
+        boid.edges();
         boid.align(flock);
         boid.update();
+        boid.draw();
     }
 
-    // circle.update;
 }
-
-
-/*
-function align(boids) {
-    let preceptionRadius = 50;
-    let avg = Victor();
-    let total = 0;
-
-    for (let other of boids) {
-        // let d = dist(this.position.x, this.position.y, other.position.x, other.position.y)
-
-        let vec1 = new Victor(this.position.x, this.position.y);
-        let vec2 = new Victor(other.position.x, other.position.y);
-
-        let d = vec1.distance(vec2);
-        console.log(d);
-
-        if (other != this && d < preceptionRadius) {
-            avg.add(other);
-            total++;
-        }
-    }
-
-    if (total > 0) {
-        avg.div(totla);
-        this.velocity = avg;
-    }
-
-    console.log(avg);
-    return avg;
-}
-*/
