@@ -7,14 +7,8 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
 
-let secondsPassed = 0;
-let oldTimeStamp = 0;
-let movingSpeed = 50;
-
-const maxForce = 1;
+let maxForce = 1;
 let maxSpeed = 4;
-let minSpeed = 0.5;
-
 let boidSpeed = 4;
 
 let flock = [];
@@ -23,7 +17,7 @@ function setup() {
   for (let i = 0; i < 100; i++) {
     let radius = 5;
 
-    // spawn randomly on canvas
+    // spawn boids randomly on canvas
     let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
     let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
 
@@ -37,13 +31,13 @@ function setup() {
 setup();
 
 function animate() {
-  draw();
-
   window.requestAnimationFrame(animate);
+  draw();
 }
 // start draw loop
 window.requestAnimationFrame(animate);
 
+// test interval
 setInterval(() => {
   // draw();
 }, 1000);
@@ -196,8 +190,6 @@ function draw() {
   for (let boid of flock) {
     boid.edges();
     boid.flock(flock);
-    // boid.align(flock);
-    // boid.cohesion(flock);
     boid.update();
     boid.draw();
   }
