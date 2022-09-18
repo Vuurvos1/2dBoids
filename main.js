@@ -1,17 +1,17 @@
 import './style.css';
-
-import Victor from 'victor';
+import Vector from 'vectored';
 
 const canvas = document.querySelector('#canvas');
 const ctx = canvas.getContext('2d');
 
-canvas.width = 1200;
+canvas.width = 800;
 canvas.height = 600;
 
 let secondsPassed = 0;
 let oldTimeStamp = 0;
 let movingSpeed = 50;
 
+const maxForce = 1;
 let maxSpeed = 4;
 let minSpeed = 0.5;
 
@@ -23,23 +23,14 @@ function setup() {
   for (let i = 0; i < 100; i++) {
     let radius = 5;
 
-    // spawn random
+    // spawn randomly on canvas
     let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
     let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
 
-    // spawn center
-    // let x = canvas.width / 2;
-    // let y = canvas.height / 2;
+    let vec = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1, 0);
+    vec.normalize().mult(boidSpeed, boidSpeed, 1);
 
-    let vec = new Victor();
-
-    vec = vec.randomize(new Victor(-4, 4), new Victor(4, -4));
-    vec.normalize();
-
-    let dx = vec.x * boidSpeed;
-    let dy = vec.y * boidSpeed;
-
-    flock.push(new Circle(x, y, dx, dy, radius));
+    flock.push(new Circle(x, y, vec.x, vec.y, radius));
   }
 }
 
@@ -50,80 +41,150 @@ function animate() {
 
   window.requestAnimationFrame(animate);
 }
-// jump start gameLoop
+// start draw loop
 window.requestAnimationFrame(animate);
 
+setInterval(() => {
+  // draw();
+}, 1000);
+
 function Circle(x, y, dx, dy, radius) {
-  this.x = x;
-  this.y = y;
-  this.dx = dx;
-  this.dy = dy;
+  this.position = new Vector(x, y, 0);
+  this.velocity = new Vector(dx, dy, 0);
+  this.acceleration = new Vector();
   this.radius = radius;
 
   this.draw = () => {
     ctx.beginPath();
     ctx.strokeStyle = '#ff8080';
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fill();
   };
 
   this.update = () => {
-    // Bounce of the canvas sides
-    // if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
-    //     this.dx = -this.dx;
-    // }
+    this.position.add(this.velocity);
+    this.velocity.add(this.acceleration);
 
-    // if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
-    //     this.dy = -this.dy
-    // }
+    // limit max speed
+    if (this.velocity.length > maxSpeed) {
+      this.velocity.normalize().mult(maxSpeed, maxSpeed, 0);
+    }
 
-    this.x += this.dx;
-    this.y += this.dy;
+    this.acceleration.mult(0, 0, 0);
   };
 
   this.align = (boids) => {
-    let preceptionRadius = 100;
-    let avg = new Victor();
+    let preceptionRadius = 50;
+    let avg = new Vector();
     let total = 0;
 
     for (let other of boids) {
-      let vec1 = new Victor(this.x, this.y);
-      let vec2 = new Victor(other.x, other.y);
-
-      let d = vec1.distance(vec2);
-
-      if (other != this && d < preceptionRadius) {
-        avg.add(vec2);
+      if (other == this) continue;
+      const dist = this.position.copy().distance(other.position);
+      if (dist < preceptionRadius) {
+        let diff = new Vector().sub(this.position, other.position);
+        diff.divide(dist * dist);
+        avg.add(diff);
         total++;
       }
     }
 
     if (total > 0) {
-      avg.divide(new Victor(total, total));
-      avg.normalize();
+      avg.divide(new Vector(total, total, 1));
+      avg.subtract(this.position);
+      avg.setMag(maxSpeed);
+      avg.sub(this.velocity);
 
-      let velocity = new Victor(this.dx, this.dy).normalize();
-
-      avg.subtract(velocity);
-
-      this.dx = avg.x * boidSpeed;
-      this.dy = avg.y * boidSpeed;
+      // limit force
+      if (avg.length > maxForce) {
+        avg = avg.setMag(4);
+      }
     }
+    return avg;
+  };
+
+  this.cohesion = (boids) => {
+    let preceptionRadius = 100;
+    let avg = new Vector();
+    let total = 0;
+
+    for (let other of boids) {
+      if (other == this) continue;
+      const dist = this.position.copy().distance(other.position);
+      if (dist < preceptionRadius) {
+        avg.add(other.position);
+        total++;
+      }
+    }
+
+    if (total > 0) {
+      avg.divide(new Vector(total, total, 1));
+      avg.subtract(this.position);
+      avg.setMag(maxSpeed);
+
+      // limit force
+      if (avg.length > maxForce) {
+        avg = avg.setMag(4);
+      }
+    }
+    return avg;
+  };
+
+  this.separation = (boids) => {
+    let preceptionRadius = 50;
+    let avg = new Vector();
+    let total = 0;
+
+    for (let other of boids) {
+      if (other == this) continue;
+      const dist = this.position.copy().distance(other.position);
+      if (dist < preceptionRadius) {
+        let diff = this.position.copy().sub(other.position);
+        diff.div(dist);
+        avg.add(diff);
+        total++;
+      }
+    }
+
+    if (total > 0) {
+      avg.divide(new Vector(total, total, 1));
+      // avg.subtract(this.position);
+      avg.setMag(maxSpeed);
+      avg.sub(this.velocity);
+
+      // limit force
+      if (avg.length > maxForce) {
+        avg = avg.setMag(4);
+      }
+    }
+    return avg;
+  };
+
+  this.flock = (boids) => {
+    let alignment = this.align(boids);
+    let cohesion = this.cohesion(boids);
+    let separation = this.separation(boids);
+
+    // TODO influence values (by multiplying them [0-x])
+
+    this.acceleration.add(separation);
+    this.acceleration.add(alignment);
+    this.acceleration.add(cohesion);
   };
 
   this.edges = () => {
     // screen wrapping
-    if (this.x > canvas.width) {
-      this.x = 10;
-    } else if (this.x < 0) {
-      this.x = canvas.width;
+    if (this.position.x > canvas.width) {
+      this.position.x = 10;
+    } else if (this.position.x < 0) {
+      this.position.x = canvas.width - 10;
     }
 
-    if (this.y > canvas.height) {
-      this.y = 10;
-    } else if (this.y < 0) {
-      this.y = canvas.height;
+    if (this.position.y > canvas.height) {
+      this.position.y = 10;
+    } else if (this.position.y < 0) {
+      this.position.y = canvas.height - 10;
     }
   };
 }
@@ -134,7 +195,9 @@ function draw() {
 
   for (let boid of flock) {
     boid.edges();
-    boid.align(flock);
+    boid.flock(flock);
+    // boid.align(flock);
+    // boid.cohesion(flock);
     boid.update();
     boid.draw();
   }
