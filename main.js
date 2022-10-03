@@ -13,6 +13,28 @@ let boidSpeed = 4;
 
 let flock = [];
 
+function drawBoid(x, y, rotation) {
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#fff';
+
+  ctx.beginPath();
+  ctx.save(); // why is this?
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+
+  ctx.beginPath();
+  ctx.moveTo(0, -14);
+
+  ctx.lineTo(11, 14);
+  ctx.lineTo(0, 7);
+  ctx.lineTo(-11, 14);
+  ctx.lineTo(0, -14);
+
+  ctx.restore();
+  ctx.closePath();
+  ctx.stroke();
+}
+
 function setup() {
   for (let i = 0; i < 100; i++) {
     let radius = 5;
@@ -37,7 +59,7 @@ function animate() {
 // start draw loop
 window.requestAnimationFrame(animate);
 
-// test interval
+// testing interval
 setInterval(() => {
   // draw();
 }, 1000);
@@ -49,11 +71,15 @@ function Circle(x, y, dx, dy, radius) {
   this.radius = radius;
 
   this.draw = () => {
-    ctx.beginPath();
-    ctx.strokeStyle = '#ff8080';
-    ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fill();
+    // get velocity angle
+    const ang = Math.atan2(this.velocity.y, this.velocity.x);
+    drawBoid(this.position.x, this.position.y, ang);
+
+    // ctx.beginPath();
+    // ctx.strokeStyle = '#ff8080';
+    // ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+    // ctx.stroke();
+    // ctx.fill();
   };
 
   this.update = () => {
