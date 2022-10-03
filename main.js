@@ -1,15 +1,11 @@
 import './style.css';
-import Vector from 'vectored';
+import Vector from './vectoredBeta';
 
 const canvas = document.querySelector('#canvas');
 const ctx = canvas.getContext('2d');
 
 canvas.width = 800;
 canvas.height = 600;
-
-let maxForce = 1;
-let maxSpeed = 4;
-let boidSpeed = 4;
 
 let flock = [];
 
@@ -20,6 +16,7 @@ function drawBoid(x, y, rotation) {
   ctx.beginPath();
   ctx.save(); // why is this?
   ctx.translate(x, y);
+  ctx.scale(0.5, 0.5);
   ctx.rotate(rotation);
 
   ctx.beginPath();
@@ -37,16 +34,14 @@ function drawBoid(x, y, rotation) {
 
 function setup() {
   for (let i = 0; i < 100; i++) {
-    let radius = 5;
-
     // spawn boids randomly on canvas
-    let x = Math.floor(Math.random() * (canvas.width - radius * 2) + radius);
-    let y = Math.floor(Math.random() * (canvas.height - radius * 2) + radius);
+    let x = Math.floor(Math.random() * (canvas.width * 2));
+    let y = Math.floor(Math.random() * (canvas.height * 2));
 
-    let vec = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1, 0);
-    vec.normalize().mult(boidSpeed, boidSpeed, 1);
+    let vec = new Vector(Math.random() * 2 - 1, Math.random() * 2 - 1);
+    vec.setMag(Math.random() * 2 + 2);
 
-    flock.push(new Circle(x, y, vec.x, vec.y, radius));
+    flock.push(new Circle(x, y, vec.x, vec.y));
   }
 }
 
@@ -65,19 +60,21 @@ setInterval(() => {
 }, 1000);
 
 function Circle(x, y, dx, dy, radius) {
-  this.position = new Vector(x, y, 0);
-  this.velocity = new Vector(dx, dy, 0);
+  this.position = new Vector(x, y);
+  this.velocity = new Vector(dx, dy);
   this.acceleration = new Vector();
-  this.radius = radius;
+  this.maxForce = 0.2;
+  this.maxSpeed = 5;
 
   this.draw = () => {
     // get velocity angle
-    const ang = Math.atan2(this.velocity.y, this.velocity.x);
+    let ang = Math.atan2(this.velocity.y, this.velocity.x);
+    ang += Math.PI / 2;
     drawBoid(this.position.x, this.position.y, ang);
 
     // ctx.beginPath();
     // ctx.strokeStyle = '#ff8080';
-    // ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+    // ctx.arc(this.position.x, this.position.y, 5, 0, Math.PI * 2);
     // ctx.stroke();
     // ctx.fill();
   };
@@ -87,15 +84,15 @@ function Circle(x, y, dx, dy, radius) {
     this.velocity.add(this.acceleration);
 
     // limit max speed
-    if (this.velocity.length > maxSpeed) {
-      this.velocity.normalize().mult(maxSpeed, maxSpeed, 0);
+    if (this.velocity.length > this.maxSpeed) {
+      this.velocity.setMag(this.maxSpeed);
     }
 
     this.acceleration.mult(0, 0, 0);
   };
 
   this.align = (boids) => {
-    let preceptionRadius = 50;
+    let preceptionRadius = 24;
     let avg = new Vector();
     let total = 0;
 
@@ -113,19 +110,19 @@ function Circle(x, y, dx, dy, radius) {
     if (total > 0) {
       avg.divide(new Vector(total, total, 1));
       avg.subtract(this.position);
-      avg.setMag(maxSpeed);
+      avg.setMag(this.maxSpeed);
       avg.sub(this.velocity);
 
       // limit force
-      if (avg.length > maxForce) {
-        avg = avg.setMag(4);
+      if (avg.length > this.maxForce) {
+        avg = avg.setMag(this.maxForce);
       }
     }
     return avg;
   };
 
   this.cohesion = (boids) => {
-    let preceptionRadius = 100;
+    let preceptionRadius = 50;
     let avg = new Vector();
     let total = 0;
 
@@ -141,18 +138,19 @@ function Circle(x, y, dx, dy, radius) {
     if (total > 0) {
       avg.divide(new Vector(total, total, 1));
       avg.subtract(this.position);
-      avg.setMag(maxSpeed);
+      avg.setMag(this.maxSpeed);
+      avg.subtract(this.velocity);
 
       // limit force
-      if (avg.length > maxForce) {
-        avg = avg.setMag(4);
+      if (avg.length > this.maxForce) {
+        avg = avg.setMag(this.maxForce);
       }
     }
     return avg;
   };
 
   this.separation = (boids) => {
-    let preceptionRadius = 50;
+    let preceptionRadius = 24;
     let avg = new Vector();
     let total = 0;
 
@@ -169,13 +167,13 @@ function Circle(x, y, dx, dy, radius) {
 
     if (total > 0) {
       avg.divide(new Vector(total, total, 1));
-      // avg.subtract(this.position);
-      avg.setMag(maxSpeed);
+      avg.subtract(this.position);
+      avg.setMag(this.maxSpeed);
       avg.sub(this.velocity);
 
       // limit force
-      if (avg.length > maxForce) {
-        avg = avg.setMag(4);
+      if (avg.length > this.maxForce) {
+        avg = avg.setMag(this.maxForce);
       }
     }
     return avg;
@@ -185,12 +183,10 @@ function Circle(x, y, dx, dy, radius) {
     let alignment = this.align(boids);
     let cohesion = this.cohesion(boids);
     let separation = this.separation(boids);
-
     // TODO influence values (by multiplying them [0-x])
-
-    this.acceleration.add(separation);
     this.acceleration.add(alignment);
     this.acceleration.add(cohesion);
+    this.acceleration.add(separation);
   };
 
   this.edges = () => {
